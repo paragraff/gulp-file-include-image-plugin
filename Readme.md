@@ -25,7 +25,7 @@ fileinclude({
   plugins: ['node_modules/gulp-file-include-image-plugin']
   context: {
     path: {
-      images: 'srs/images
+      images: 'srs/images'
     },
     settings: {
       path: {
@@ -64,6 +64,7 @@ gulp.task('fileinclude', function() {
     .pipe(fileinclude({
       prefix: '@@{',
       postfix: '}@@',
+      plugins: ['node_modules/gulp-file-include-image-plugin'],
       context: {
         path: {
           images: 'images'
