@@ -17,10 +17,9 @@ function handle(file, content, opts, handleFn) {
 	var result = '';
 	var reStart = new RegExp(opts.prefix + '[ ]*' + opts.name + ' ');
 	var reEnd = new RegExp(opts.suffix);
-	var matchStart;
 	var matchArg;
-	var safeStart;
 
+	// check required options: paths
 	if (
 		!opts.hasOwnProperty('context')
 		|| !opts.context.hasOwnProperty('path')
@@ -38,47 +37,55 @@ function handle(file, content, opts, handleFn) {
 		throw new Error('image dir path (context.path.images) is not exist');
 	}
 
-	while (matchStart = reStart.exec(content)) {
-		safeStart = matchStart.index + matchStart[0].length - 1;
+	//  create img tag for each image markup
+	while (reStart.exec(content)) {
 
+		// get image markup
 		matchArg = balanced(reStart, reEnd, content);
 
+		// get params from markup string
 		let fileParams = matchArg.body.match(/(.*?)="(.*?)"\s?/g),
 			paramsObj = fileParams.reduce(function (result, param) {
 				result[param.split('=')[0]] = param.split('=')[1].trim();
 				return result;
 			}, {}),
-			fileName = paramsObj.file,
-			fileDimensions,
-			img;
+			fileName = paramsObj.file;
 
+		// check exist path to file in markup params
 		if (fileName === undefined) {
 			throw new Error('file - required property for image markup');
 		} else {
 			delete paramsObj.file;
 			fileName = fileName.substring(1, fileName.length - 1);
+			// Reflect is not defined in nodejs < 6
 			// Reflect.deleteProperty(paramsObj, 'file');
 		}
 
-		fileDimensions = sizeOf(path.resolve(opts.context.path.images, fileName));
-
-		img = `<img src="${opts.context.settings.path.images}/${fileName}" `;
-		img += `height=${fileDimensions.height} width=${fileDimensions.width} `;
-
-		let attributesString = Object.keys(paramsObj).reduce(function (result, attributeName) {
-			result += `${attributeName}=${paramsObj[attributeName]} `;
-			return result;
-		}, '');
-
-		img += `${attributesString}>`;
-
-		let start = content.substring(0, matchArg.start),
-			end = content.substring(matchArg.end, content.length).replace(reEnd, '');
-
-		content = start + img + end;
+		content =
+			// string before image markup
+			content.substring(0, matchArg.start) +
+			// new string instead image markup
+			createImgTag(opts.context.settings.path.images, opts.context.path.images, fileName, paramsObj) +
+			// string after image markup
+			content.substring(matchArg.end, content.length).replace(reEnd, '');
 	}
 
 	result += content;
 
 	return result;
+}
+
+function getAttirbutesSting(params) {
+	return Object.keys(params)
+		.reduce(function (result, attributeName) {
+			result += `${attributeName}=${params[attributeName]} `;
+			return result;
+		}, '');
+}
+
+function createImgTag(domainName, pathToFile, fileName, paramsObj) {
+	var fileDimensions = sizeOf(path.resolve(pathToFile, fileName));
+
+	return `<img src="${domainName}/${fileName}" height=${fileDimensions.height} width=${fileDimensions.width} ` +
+			`${getAttirbutesSting(paramsObj)}>`;
 }
